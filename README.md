@@ -19,7 +19,7 @@ This is a small Rust demo that shows how to use CentralAuth in a desktop app flo
 
 ## Configuration
 
-This demo uses compile-time environment variables. Set them before building or running.
+This demo uses compile-time environment variables. Configure them in a `.cargo/config.toml` file in the project root.
 
 Required:
 
@@ -31,23 +31,17 @@ Optional:
 - `BASE_URL` - Your backend base URL (default: `http://localhost:3000`)
 - `AUTH_BASE_URL` - CentralAuth base URL (default: `https://centralauth.com`)
 
-Example (Linux/macOS):
+Create a `.cargo/config.toml` file in the project root with your settings:
 
-```bash
-export APP_ID="your-app-id"
-export CLIENT_ID="your-client-id"
-export BASE_URL="http://localhost:3000"
-export AUTH_BASE_URL="https://centralauth.com"
+```toml
+[env]
+APP_ID = "your-app-id"
+CLIENT_ID = "your-client-id"
+BASE_URL = "http://localhost:3000"
+AUTH_BASE_URL = "https://centralauth.com"
 ```
 
-Example (Windows PowerShell):
-
-```powershell
-$env:APP_ID = "your-app-id"
-$env:CLIENT_ID = "your-client-id"
-$env:BASE_URL = "http://localhost:3000"
-$env:AUTH_BASE_URL = "https://centralauth.com"
-```
+**Note:** Add `.cargo/config.toml` to your `.gitignore` to avoid committing sensitive credentials
 
 ## Run
 
