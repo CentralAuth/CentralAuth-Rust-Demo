@@ -1,8 +1,8 @@
 use oauth2::basic::BasicClient;
+use oauth2::{reqwest, TokenResponse};
 use oauth2::{
     AuthUrl, AuthorizationCode, ClientId, CsrfToken, PkceCodeChallenge, RedirectUrl, TokenUrl,
 };
-use oauth2::{TokenResponse, reqwest};
 use serde::Serialize;
 use url::Url;
 
@@ -11,7 +11,7 @@ use std::env;
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpListener;
 
-use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
+use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 
 use chrono::{Duration, Utc};
 
