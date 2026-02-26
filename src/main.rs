@@ -253,4 +253,10 @@ fn main() {
     println!(
         "Demo complete! In a real application, you would now store the access token securely (e.g. in an encrypted file or secure vault) and use it to authenticate API requests on behalf of the user.\n"
     );
+
+    #[cfg(target_os = "windows")]
+    {
+        println!("Press Enter to exit...");
+        let _ = std::io::stdin().read_line(&mut String::new());
+    }
 }
