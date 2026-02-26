@@ -99,10 +99,12 @@ pub mod signing_certificate {
 #[cfg(target_os = "macos")]
 pub mod signing_certificate {
     use hex;
-    use security_framework::base::Error;
     use security_framework::certificate::SecCertificate;
-    use security_framework::code_signing::{CodeSigningRequirement, StaticCode};
-    use sha2::{Digest, Sha2};
+    use sha2::{Digest, Sha256};
+    use std::fs;
+    use std::path::PathBuf;
+    use std::process::Command;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     #[derive(Debug)]
     pub struct SigningCertificateInfo {
@@ -111,41 +113,52 @@ pub mod signing_certificate {
     }
 
     pub fn get_signing_certificate() -> Result<SigningCertificateInfo, String> {
-        // Load current executable
         let path =
             std::env::current_exe().map_err(|e| format!("Failed to get executable path: {}", e))?;
 
-        let static_code = StaticCode::from_path(&path)
-            .map_err(|e| format!("Failed to load static code: {:?}", e))?;
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|e| format!("Failed to compute timestamp: {}", e))?
+            .as_nanos();
+        let temp_dir: PathBuf = std::env::temp_dir().join(format!(
+            "centralauth-signing-cert-{}-{}",
+            std::process::id(),
+            timestamp
+        ));
 
-        // Validate signature (ensures code is properly signed)
-        static_code
-            .check_validity(None)
-            .map_err(|e| format!("Code signature validation failed: {:?}", e))?;
+        fs::create_dir_all(&temp_dir)
+            .map_err(|e| format!("Failed to create temp directory: {}", e))?;
 
-        // Extract signing information
-        let signing_info = static_code
-            .signing_information()
-            .map_err(|e| format!("Failed to get signing information: {:?}", e))?;
+        let output = Command::new("codesign")
+            .arg("-d")
+            .arg("--extract-certificates")
+            .arg(&path)
+            .current_dir(&temp_dir)
+            .output()
+            .map_err(|e| format!("Failed to run codesign: {}", e))?;
 
-        let certs = signing_info
-            .certificates()
-            .ok_or("No signing certificates found")?;
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let _ = fs::remove_dir_all(&temp_dir);
+            return Err(format!(
+                "Failed to extract signing certificate from executable: {}",
+                stderr.trim()
+            ));
+        }
 
-        let leaf_cert: &SecCertificate = certs.first().ok_or("Certificate chain is empty")?;
+        let leaf_cert_path = temp_dir.join("codesign0");
+        let der = fs::read(&leaf_cert_path)
+            .map_err(|e| format!("Failed to read extracted leaf certificate: {}", e))?;
+        let _ = fs::remove_dir_all(&temp_dir);
 
-        // Get DER-encoded certificate
-        let der = leaf_cert.to_der();
+        let leaf_cert = SecCertificate::from_der(&der)
+            .map_err(|e| format!("Failed to parse leaf certificate DER: {:?}", e))?;
 
-        // Compute SHA256 thumbprint
         let mut hasher = Sha256::new();
         hasher.update(&der);
         let thumbprint = hex::encode(hasher.finalize());
 
-        // Extract subject summary
-        let subject = leaf_cert
-            .subject_summary()
-            .unwrap_or_else(|| "Unknown".into());
+        let subject = leaf_cert.subject_summary();
 
         Ok(SigningCertificateInfo {
             subject,

@@ -34,7 +34,11 @@ fn get_thumbprint() -> String {
     {
         match get_signing_certificate() {
             Ok(cert) => {
-                println!("Subject: {}", cert.subject);
+                println!("Subject: {}\n", cert.subject);
+                println!(
+                    "Thumbprint: {} (Never print this in a real application)\n",
+                    cert.thumbprint_sha256
+                );
                 return cert.thumbprint_sha256;
             }
             Err(e) => {
@@ -101,9 +105,11 @@ fn main() {
         "STEP 4: Get the thumbprint of the signing certificate to use as the secret for signing the JWT.\n"
     );
     let thumbprint = get_thumbprint();
+    if thumbprint.is_empty() {
+        panic!("Signing certificate thumbprint is empty");
+    }
 
-    // Sign the JWT using the private key. The server will verify the signature using the corresponding public key.
-    // WARNING: In a real application, you should not include your private key in your source code (or commit it to version control). This is just for demonstration purposes.
+    // Sign the JWT using the thumbprint as secret
     let client_assertion = encode(
         &Header::new(Algorithm::HS256),
         &claims,
