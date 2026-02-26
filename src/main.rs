@@ -34,11 +34,11 @@ fn get_thumbprint() -> String {
     {
         match get_signing_certificate() {
             Ok(cert) => {
-                println!("Subject: {}\n", cert.subject);
-                println!(
-                    "Thumbprint: {} (Never print this in a real application)\n",
-                    cert.thumbprint_sha256
-                );
+                println!("Certificate subject: {}\n", cert.subject);
+                // println!(
+                //     "Thumbprint: {} (Never print this in a real application)\n",
+                //     cert.thumbprint_sha256
+                // );
                 return cert.thumbprint_sha256;
             }
             Err(e) => {
