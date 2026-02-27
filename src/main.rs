@@ -3,7 +3,7 @@ use oauth2::{
     AuthUrl, AuthorizationCode, ClientId, CsrfToken, PkceCodeChallenge, RedirectUrl, TokenUrl,
 };
 use oauth2::{TokenResponse, reqwest};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use url::Url;
 
 use deviceid::DevDeviceId;
@@ -11,7 +11,9 @@ use std::env;
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpListener;
 
-use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
+use biscuit::jwa::SignatureAlgorithm;
+use biscuit::jws::{RegisteredHeader, Secret};
+use biscuit::{ClaimsSet, Empty, JWT, RegisteredClaims, SingleOrMultiple, Timestamp};
 
 use chrono::{Duration, Utc};
 
@@ -19,14 +21,9 @@ mod signing_certificate;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 use signing_certificate::signing_certificate::get_signing_certificate;
 
-#[derive(Serialize)]
-struct Claims {
-    iss: String,
-    sub: String,
-    aud: String,
+#[derive(Clone, Serialize, Deserialize)]
+struct PrivateClaims {
     nonce: String,
-    iat: usize,
-    exp: usize,
 }
 
 fn get_thumbprint() -> String {
@@ -82,40 +79,66 @@ fn main() {
         client_id.to_string()
     ));
 
-    let nonce = http_client
-        .get(client_challenge_url_builder.as_str())
-        .send()
-        .unwrap()
-        .text()
-        .unwrap();
+    let mut nonce_request = http_client.get(client_challenge_url_builder.as_str());
+    // In debug mode, include the API key in the request to bypass nonce check when starting the login flow.
+    if cfg!(debug_assertions) {
+        nonce_request = nonce_request.bearer_auth(option_env!("API_KEY").unwrap_or(""));
+    }
+
+    let nonce = nonce_request.send().unwrap().text().unwrap();
 
     // Create a JWT client challenge token to include in the authorization URL.
     println!("STEP 3: Create a JWT client challenge token with the nonce.\n");
-    let claims = Claims {
-        iss: client_id.to_string(),
-        sub: device_id.to_string(),
-        aud: auth_base_url.to_owned(),
-        nonce,
-        iat: Utc::now().timestamp() as usize,
-        exp: (Utc::now() + Duration::seconds(60)).timestamp() as usize,
+    let claims_set = ClaimsSet {
+        registered: RegisteredClaims {
+            issuer: Some(client_id.to_string()),
+            subject: Some(device_id.to_string()),
+            audience: Some(SingleOrMultiple::Single(auth_base_url.to_owned())),
+            issued_at: Some(Timestamp::from(Utc::now())),
+            expiry: Some(Timestamp::from(Utc::now() + Duration::seconds(60))),
+            ..Default::default()
+        },
+        private: PrivateClaims { nonce },
     };
 
-    //Get the thumbprint of the signing certificate to use as the secret for signing the JWT. The server will use this thumbprint to decode the JWT.
-    println!(
-        "STEP 4: Get the thumbprint of the signing certificate to use as the secret for signing the JWT.\n"
-    );
-    let thumbprint = get_thumbprint();
-    if thumbprint.is_empty() {
-        panic!("Signing certificate thumbprint is empty");
-    }
+    let client_assertion = if cfg!(debug_assertions) {
+        println!("STEP 4: Build an unsigned debug JWT from the claims.\n");
+        let jwt: JWT<_, Empty> = JWT::new_decoded(
+            From::from(RegisteredHeader {
+                algorithm: SignatureAlgorithm::None,
+                ..Default::default()
+            }),
+            claims_set.clone(),
+        );
+        let secret = Secret::None;
+        jwt.into_encoded(&secret)
+            .expect("Failed to encode unsigned debug JWT")
+            .unwrap_encoded()
+            .to_string()
+    } else {
+        // Get the thumbprint of the signing certificate to use as the secret for signing the JWT. The server will use this thumbprint to decode the JWT.
+        println!(
+            "STEP 4: Get the thumbprint of the signing certificate to use as the secret for signing the JWT.\n"
+        );
+        let thumbprint = get_thumbprint();
+        if thumbprint.is_empty() {
+            panic!("Signing certificate thumbprint is empty");
+        }
 
-    // Sign the JWT using the thumbprint as secret
-    let client_assertion = encode(
-        &Header::new(Algorithm::HS256),
-        &claims,
-        &EncodingKey::from_secret(thumbprint.as_bytes()),
-    )
-    .expect("Failed to encode JWT");
+        // Sign the JWT using the thumbprint as secret
+        let jwt: JWT<_, Empty> = JWT::new_decoded(
+            From::from(RegisteredHeader {
+                algorithm: SignatureAlgorithm::HS256,
+                ..Default::default()
+            }),
+            claims_set,
+        );
+        let secret = Secret::Bytes(thumbprint.into_bytes());
+        jwt.into_encoded(&secret)
+            .expect("Failed to encode JWT")
+            .unwrap_encoded()
+            .to_string()
+    };
 
     println!("Generated client assertion token:\n{}\n", client_assertion);
 
