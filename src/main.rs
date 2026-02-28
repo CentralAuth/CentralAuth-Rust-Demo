@@ -81,6 +81,7 @@ fn main() {
 
     let mut nonce_request = http_client.get(client_challenge_url_builder.as_str());
     // In debug mode, include the API key in the request to bypass nonce check when starting the login flow.
+    // Never include the API key in a production application or print it in the console!
     if cfg!(debug_assertions) {
         nonce_request = nonce_request.bearer_auth(option_env!("API_KEY").unwrap_or(""));
     }
