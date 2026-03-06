@@ -13,11 +13,28 @@ This is a small Rust demo that shows how to use CentralAuth in a desktop app flo
 
 In debug builds, the app also prints the generated client assertion and received access token for demo visibility.
 
+### Prebuilt binaries
+
+#### Windows demo
+
+To run the prebuilt Windows binary, download the [Windows demo app](https://centralauth.com/CentralAuth-Windows-Demo.exe) and double-click the executable to run it.
+
+#### MacOS demo
+
+To run the prebuilt MacOS binary, download the [MacOS demo app](https://centralauth.com/CentralAuth-MacOS-Demo). Before running it, you need to make the file executable and run it from the terminal:
+
+```bash
+chmod +x CentralAuth-MacOS-Demo
+./CentralAuth-MacOS-Demo
+```
+
+# Building this demo
+
 ## Prerequisites
 
 - Rust (2024 edition)
 - A CentralAuth app with `APP_ID` and `CLIENT_ID`
-- A backend that exposes `/api/auth/user` and accepts a bearer token
+- A backend that exposes `/api/auth/user` and accepts a bearer token, e.g. a website with the CentralAuth [NPM package](https://github.com/CentralAuth/CentralAuth-NPM-Package) or [PHP library](https://github.com/CentralAuth/CentralAuth-PHP-library) installed. 
 
 ## Configuration
 
@@ -71,12 +88,6 @@ Note: release mode requires successful signing certificate extraction on support
 - macOS: the leaf signing certificate is extracted via `codesign --extract-certificates` and hashed.
 - Linux/other platforms: signing certificate retrieval is not implemented, so release builds will fail at runtime unless you add your own production-safe signing approach.
 - Never print or persist tokens/secrets in production apps.
-
-## Troubleshooting
-
-- If the browser does not open, copy the printed URL into your browser manually.
-- Ensure nothing else is bound to `localhost:12120`.
-- Verify that your backend accepts the access token and the `device-id` header.
 
 ## License
 
