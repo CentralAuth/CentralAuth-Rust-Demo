@@ -103,7 +103,7 @@ fn main() {
     };
 
     let client_assertion = if cfg!(debug_assertions) {
-        println!("STEP 4: Build an unsigned debug JWT from the claims.\n");
+        println!("STEP 4: Build an unsigned debug JWT from the claims (development mode only.\n");
         let jwt: JWT<_, Empty> = JWT::new_decoded(
             From::from(RegisteredHeader {
                 algorithm: SignatureAlgorithm::None,
@@ -119,7 +119,7 @@ fn main() {
     } else {
         // Get the thumbprint of the signing certificate to use as the secret for signing the JWT. The server will use this thumbprint to decode the JWT.
         println!(
-            "STEP 4: Get the thumbprint of the signing certificate to use as the secret for signing the JWT.\n"
+            "STEP 4: Get the thumbprint of the signing certificate to use as the secret for signing the JWT (production mode only).\n"
         );
         let thumbprint = get_thumbprint();
         if thumbprint.is_empty() {
@@ -230,13 +230,9 @@ fn main() {
             .map(|(_, state)| CsrfToken::new(state.into_owned()))
             .unwrap();
 
-        // Send a response to the browser.
-        let message = "Please return to your app to continue.";
-        let response = format!(
-            "HTTP/1.1 200 OK\r\ncontent-length: {}\r\n\r\n{}",
-            message.len(),
-            message
-        );
+        // Redirect the browser to the callback URL.
+        let response =
+            "HTTP/1.1 302 Found\r\nLocation: https://centralauth.com/deeplink/app_callback\r\n\r\n";
         stream.write_all(response.as_bytes()).unwrap();
 
         // Return the code and state.
