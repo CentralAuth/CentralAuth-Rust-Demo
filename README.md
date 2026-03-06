@@ -17,11 +17,11 @@ In debug builds, the app also prints the generated client assertion and received
 
 #### Windows demo
 
-To run the prebuilt Windows binary, download the [Windows demo app](https://centralauth.com/CentralAuth-Windows-Demo.exe) and double-click the executable to run it.
+To run the prebuilt Windows binary, download the Windows demo app from the [releases page](https://github.com/CentralAuth/CentralAuth-Rust-Demo/releases) and double-click the executable to run it.
 
 #### MacOS demo
 
-To run the prebuilt MacOS binary, download the [MacOS demo app](https://centralauth.com/CentralAuth-MacOS-Demo). Before running it, you need to make the file executable and run it from the terminal:
+To run the prebuilt MacOS binary, download the MacOS demo app from the [releases page](https://github.com/CentralAuth/CentralAuth-Rust-Demo/releases). Before running it, you need to make the file executable and run it from the terminal:
 
 ```bash
 chmod +x CentralAuth-MacOS-Demo
